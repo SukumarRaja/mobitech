@@ -8,8 +8,8 @@ import '../data/models/products_list_model.dart';
 part 'products_service.g.dart';
 
 @http.RestApi()
-abstract class ProductsServices {
-  factory ProductsServices(Dio dio, {String baseUrl}) = _ProductsServices;
+abstract class ProductsService {
+  factory ProductsService(Dio dio, {String baseUrl}) = _ProductsService;
 
   @http.GET('/products')
   Future<List<ProductResponse>> getProducts();

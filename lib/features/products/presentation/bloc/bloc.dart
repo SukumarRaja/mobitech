@@ -6,7 +6,7 @@ import 'package:mobitech/features/products/presentation/bloc/event.dart';
 import 'state.dart';
 
 class ProductBloc extends Bloc<ProductEvent, ProductState> {
-  final ProductsServices service;
+  final ProductsService service;
 
   late List<ProductResponse> products = [];
 
@@ -30,18 +30,18 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         if (products.isEmpty) {
           products = await service.getProducts();
         }
-        
+
         final query = event.query.toLowerCase().trim();
         if (query.isEmpty) {
           emit(ProductLoaded(products));
           return;
         }
-        
+
         final filteredProducts = products.where((product) {
           return product.title.toLowerCase().contains(query) ||
               product.description.toLowerCase().contains(query);
         }).toList();
-        
+
         emit(ProductLoaded(filteredProducts));
       } catch (e) {
         emit(ProductError('Failed to search products: $e'));

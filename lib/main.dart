@@ -24,7 +24,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   late final ProductBloc _productBloc;
   late final InitialBloc _initAppBloc;
-  late final ProductsServices _productsServices;
+  late final ProductsService _productsServices;
 
   @override
   void initState() {
@@ -32,7 +32,7 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     late final InitialBloc _initAppBloc = InitialBloc()..add(StartInitial());
     final dio = ApiClient.createDio(_initAppBloc);
-    _productsServices = ProductsServices(dio, baseUrl: baseUrl);
+    _productsServices = ProductsService(dio, baseUrl: baseUrl);
 
     _productBloc = ProductBloc(_productsServices)..add(LoadProducts());
   }
