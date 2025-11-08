@@ -23,14 +23,29 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       }
     });
 
-    on<SearchProducts>((event, emit) {
+    on<SearchProducts>((event, emit) async {
       emit(ProductLoading());
-      final query = event.query.toLowerCase();
-      final filteredProducts = products.where((product) {
-        return product.title.toLowerCase().contains(query) ||
-            product.description.toLowerCase().contains(query);
-      }).toList();
-      emit(ProductLoaded(filteredProducts));
+      try {
+        // If products are not loaded yet, fetch them first
+        if (products.isEmpty) {
+          products = await service.getProducts();
+        }
+        
+        final query = event.query.toLowerCase().trim();
+        if (query.isEmpty) {
+          emit(ProductLoaded(products));
+          return;
+        }
+        
+        final filteredProducts = products.where((product) {
+          return product.title.toLowerCase().contains(query) ||
+              product.description.toLowerCase().contains(query);
+        }).toList();
+        
+        emit(ProductLoaded(filteredProducts));
+      } catch (e) {
+        emit(ProductError('Failed to search products: $e'));
+      }
     });
   }
 }

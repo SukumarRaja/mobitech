@@ -23,12 +23,15 @@ Timer? debounce;
 class _ProductsListState extends State<ProductsList> {
   @override
   void initState() {
-    context.read<ProductBloc>().add(LoadProducts());
     super.initState();
-    searchController.addListener(() {
-      final query = searchController.text;
-      context.read<ProductBloc>().add(SearchProducts(query));
-    });
+    context.read<ProductBloc>().add(LoadProducts());
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    debounce?.cancel();
+    super.dispose();
   }
 
   @override
@@ -73,109 +76,143 @@ class _ProductsListState extends State<ProductsList> {
                       contentPadding: const EdgeInsets.all(16.0),
                     ),
                     onChanged: (val) {
-                      if (debounce?.isActive ?? false) debounce!.cancel();
+                      if (val.isEmpty) {
+                        // If search is cleared, reload all products
+                        context.read<ProductBloc>().add(LoadProducts());
+                        return;
+                      }
+
+                      // Cancel previous debounce timer if it exists
+                      debounce?.cancel();
+
+                      // Set a new debounce timer
                       debounce = Timer(const Duration(milliseconds: 500), () {
-                        context.read<ProductBloc>().add(SearchProducts(val));
-                        // Perform search operation here
+                        if (val.isNotEmpty) {
+                          context.read<ProductBloc>().add(SearchProducts(val));
+                        }
                       });
                     },
                   ),
                 ),
                 SizedBox(height: 20),
                 Expanded(
-                  child: ListView.builder(
-                    physics: BouncingScrollPhysics(),
-                    itemCount: context.read<ProductBloc>().products.length,
-                    itemBuilder: (context, index) {
-                      var product = context.read<ProductBloc>().products[index];
-                      return GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  ProductDetail(product: product),
-                            ),
+                  child: BlocBuilder<ProductBloc, ProductState>(
+                    builder: (context, state) {
+                      if (state is ProductLoading) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (state is ProductError) {
+                        return Center(child: Text(state.message));
+                      }
+                      if (state is ProductLoaded) {
+                        final products = state.products;
+                        if (products.isEmpty) {
+                          return const Center(
+                            child: Text('No products found.'),
                           );
-                        },
-                        child: Container(
-                          margin: EdgeInsets.all(4),
-                          padding: EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            color: Colors.white,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.grey.withOpacity(0.5),
-                                spreadRadius: 2,
-                                blurRadius: 5,
-                                offset: const Offset(
-                                  0,
-                                  3,
-                                ), // changes position of shadow
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            children: [
-                              ClipRRect(
-                                borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(8),
-                                  topRight: Radius.circular(8),
-                                ),
-                                child: CachedNetworkImage(
-                                  imageUrl: product.image,
-                                  placeholder: (context, url) => const Center(
-                                    child: CircularProgressIndicator(),
+                        }
+                        return ListView.builder(
+                          physics: BouncingScrollPhysics(),
+                          itemCount: state.products.length,
+                          itemBuilder: (context, index) {
+                            var product = context
+                                .read<ProductBloc>()
+                                .products[index];
+                            return GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        ProductDetail(product: product),
                                   ),
-                                  width: double.infinity,
-                                  height: 150,
-                                  errorWidget: (context, _, __) {
-                                    return const Icon(Icons.error);
-                                  },
+                                );
+                              },
+                              child: Container(
+                                margin: EdgeInsets.all(4),
+                                padding: EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  color: Colors.white,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.grey.withOpacity(0.5),
+                                      spreadRadius: 2,
+                                      blurRadius: 5,
+                                      offset: const Offset(
+                                        0,
+                                        3,
+                                      ), // changes position of shadow
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              Text(
-                                product.title,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              Text(
-                                product.category,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              Text(
-                                "\u20B9 ${product.price}",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 16,
-                                ),
-                              ),
+                                child: Column(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: const BorderRadius.only(
+                                        topLeft: Radius.circular(8),
+                                        topRight: Radius.circular(8),
+                                      ),
+                                      child: CachedNetworkImage(
+                                        imageUrl: product.image,
+                                        placeholder: (context, url) =>
+                                            const Center(
+                                              child:
+                                                  CircularProgressIndicator(),
+                                            ),
+                                        width: double.infinity,
+                                        height: 150,
+                                        errorWidget: (context, _, __) {
+                                          return const Icon(Icons.error);
+                                        },
+                                      ),
+                                    ),
+                                    Text(
+                                      product.title,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    Text(
+                                      product.category,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    Text(
+                                      "\u20B9 ${product.price}",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 16,
+                                      ),
+                                    ),
 
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: List.generate(
-                                  ratingLength,
-                                  (index) => Icon(
-                                    index < product.rating.rate
-                                        ? Icons.star
-                                        : Icons.star_border,
-                                    color: Colors.amber,
-                                    size: 18,
-                                  ),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: List.generate(
+                                        ratingLength,
+                                        (index) => Icon(
+                                          index < product.rating.rate
+                                              ? Icons.star
+                                              : Icons.star_border,
+                                          color: Colors.amber,
+                                          size: 18,
+                                        ),
+                                      ),
+                                    ),
+
+                                    Wrap(children: [Text(product.description)]),
+                                  ],
                                 ),
                               ),
-
-                              Wrap(children: [Text(product.description)]),
-                            ],
-                          ),
-                        ),
-                      );
+                            );
+                          },
+                        );
+                      }
+                      return const Center(child: CircularProgressIndicator());
                     },
                   ),
                 ),
